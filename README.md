@@ -1,170 +1,66 @@
-# ZorvFinance — Finance Dashboard
+# Zorv Analytics & Finance Dashboard
 
-A full-stack finance dashboard with role-based access control, built with **React + Express.js + PostgreSQL (Supabase)**.
+A comprehensive, role-based financial record and analytics dashboard built with a robust, separated Backend architecture and a dynamic React frontend.
 
----
+## 🚀 Key Features
 
-## Tech Stack
+*   **Role-Based Access Control (RBAC):**
+    *   **ADMIN:** Full management of users and global financial records.
+    *   **ANALYST:** System-wide read access for complex analytics and reporting.
+    *   **VIEWER:** Can only view and manage their *own* restricted ledger.
+*   **Financial Records Ledger:** Create, view, update, and sort financial transactions. Includes soft-delete implementation.
+*   **Deep-Dive Analytics:** Perform global and user-specific aggregations (Net income, totals, category-wise breakdowns, and trend charts) heavily utilizing backend PostgreSQL functions.
+*   **Pagination & Limits:** Implemented full cursor/offset pagination across both the REST API and the Frontend React UI.
+*   **Security & Stability:**
+    *   JWT-based session authentication.
+    *   Payload validation utilizing `Joi` middleware.
+    *   Express rate limiting (strict 50 requests/min per IP to prevent DOS).
 
-| Layer | Technology |
-|---|---|
-| Frontend | React 18, Vite, TailwindCSS, Recharts |
-| Backend | Node.js, Express.js |
-| Database | PostgreSQL via Supabase |
-| Auth | JWT (jsonwebtoken + bcryptjs) |
-| Validation | Joi |
+## 🛠️ Tech Stack
 
----
+*   **Frontend:** React (Vite), TailwindCSS, Recharts (for analytics visualization), Axios.
+*   **Backend:** Node.js, Express.js.
+*   **Database:** PostgreSQL (Hosted on Supabase) utilizing raw SQL for maximum performance.
+*   **Architecture Pattern:** Strict separation of standard HTTP routing (Controllers) from massive SQL logic (Services).
 
-## Project Structure
+## 📁 Architecture
 
-```
-zorv/
-├── backend/
-│   ├── src/
-│   │   ├── controllers/     # Route handlers
-│   │   ├── services/        # Business logic
-│   │   ├── middleware/      # Auth + RBAC + Error handler
-│   │   ├── routes/          # Express routers
-│   │   └── index.js         # App entry point
-│   ├── schema.sql           # Database schema
-│   └── .env                 # Environment variables (not committed)
-├── frontend/
-│   ├── src/
-│   │   ├── views/           # Page components
-│   │   └── components/      # Shared components
-└── package.json             # Root scripts
-```
+The project strictly follows Separation of Concerns:
+*   `routes/`: Define API endpoints and attach `requireRole` protection middleware.
+*   `controllers/`: Handle HTTP req/res formatting and param extraction.
+*   `services/`: Pure business logic and decoupled PostgreSQL execution.
+*   `middleware/`: Standardized `auth.js` and `validate.js` configurations.
 
----
-
-## Setup
-
-### 1. Clone & Install
-
-```bash
-git clone <repo-url>
-cd zorv
-npm run install:all
-```
-
-### 2. Configure Environment
-
-Copy the example env file and fill in your values:
-
-```bash
-cp backend/.env.example backend/.env
-```
-
-```env
-PORT=5000
-DATABASE_URL=postgresql://postgres:YOUR_PASSWORD@db.YOUR_PROJECT.supabase.co:5432/postgres
-JWT_SECRET=your_long_random_secret_here
-```
-
-### 3. Initialize the Database
-
-Run `backend/schema.sql` in your Supabase SQL Editor to create all tables, types, and triggers.
-
-### 4. Seed Default Admin
-
-Start the backend, then call:
-
-```bash
-curl -X POST http://localhost:5000/api/auth/setup-admin
-```
-
-Default credentials:
-- **Email:** `admin@dashboard.local`
-- **Password:** `admin123`
-
-### 5. Run Locally
-
-**Terminal 1 — Backend:**
-```bash
-npm run start:backend
-```
-
-**Terminal 2 — Frontend:**
-```bash
-npm run start:frontend
-```
-
-Open `http://localhost:3000`
-
----
-
-## API Reference
+## 🔌 API Endpoints
 
 ### Authentication
+*   `POST /api/auth/register` - Create a new user.
+*   `POST /api/auth/login` - Authenticate and retrieve JWT token.
+*   `GET /api/auth/me` - Sync user session/role state.
 
-| Method | Endpoint | Access | Description |
-|--------|----------|--------|-------------|
-| POST | `/api/auth/login` | Public | Login and receive JWT |
-| POST | `/api/auth/register` | Public | Register as Viewer |
-| POST | `/api/auth/setup-admin` | Public (once) | Seed default admin |
+### Records Management
+*   `GET /api/records` - Fetch user ledger (Paginated).
+*   `POST /api/records` - Create an entry (Time defaults to Postgres `NOW()`).
+*   `PUT /api/records/:id` - Update entry details.
+*   `DELETE /api/records/:id` - Soft delete entry.
 
-### Records
+### Analytics (Protected via ANALYST/ADMIN Role)
+*   `GET /api/user-analytics/analyze-all` - System-wide cross-user aggregated data.
+*   `GET /api/user-analytics/analyze/:userId` - Deep dive into a specific user's ledger.
+*   `GET /api/user-analytics/users` - Directory of users (Paginated).
 
-| Method | Endpoint | Access | Description |
-|--------|----------|--------|-------------|
-| GET | `/api/records` | All roles | List records (Viewer: own only) |
-| POST | `/api/records` | Viewer, Admin | Create a record |
-| PUT | `/api/records/:id` | Viewer (own), Admin | Update a record |
-| DELETE | `/api/records/:id` | Viewer (own), Admin | Soft delete a record |
+## ⚡ Setup & Local Development
 
-**Query params for GET `/api/records`:**
-- `page`, `limit` — pagination
-- `type` — `income` or `expense`
-- `category` — filter by category
-- `startDate`, `endDate` — date range (YYYY-MM-DD)
-- `search` — search in category or notes
+1. Clone the repository.
+2. Ensure you have `Node.js` installed.
+3. Configure your Supabase PostgreSQL Database.
+4. Run `schema.sql` inside your Supabase SQL editor to scaffold the exact tables.
+5. Create a `.env` in your root or `backend` folder containing:
+   ```env
+   DATABASE_URL=your_postgres_connection_string
+   JWT_SECRET=your_secure_random_string
+   ```
+6. From the `backend` directory, run `npm install` then `npm run dev`.
+7. From the `frontend` directory, run `npm install` then `npm run dev`.
 
-### Analytics
-
-| Method | Endpoint | Access | Description |
-|--------|----------|--------|-------------|
-| GET | `/api/dashboard/analytics/summary` | All roles | Income, expense, net balance |
-| GET | `/api/dashboard/analytics/categories` | All roles | Breakdown by category |
-| GET | `/api/dashboard/analytics/trends` | All roles | Monthly income vs expense |
-| GET | `/api/dashboard/analytics/recent` | All roles | Last 5 records |
-
-### Users (Admin only)
-
-| Method | Endpoint | Access | Description |
-|--------|----------|--------|-------------|
-| GET | `/api/users` | Admin | List all users |
-| PATCH | `/api/users/:id/role` | Admin | Update user role |
-| POST | `/api/users/request-role` | Authenticated | Request a role upgrade |
-
----
-
-## Roles & Permissions
-
-| Action | Viewer | Analyst | Admin |
-|--------|--------|---------|-------|
-| View own records | ✅ | ✅ | ✅ |
-| View all records | ❌ | ✅ | ✅ |
-| Create records | ✅ (own) | ❌ | ✅ |
-| Update records | ✅ (own) | ❌ | ✅ |
-| Delete records | ✅ (own, soft) | ❌ | ✅ |
-| View analytics | ✅ (own data) | ✅ (all data) | ✅ (all data) |
-| Manage users | ❌ | ❌ | ✅ |
-
----
-
-## Key Design Decisions
-
-- **Soft Delete:** Records are never hard-deleted. `deleted_at` is set instead and all queries filter `deleted_at IS NULL`.
-- **Role Requests:** Users can request an Analyst upgrade. Admins see pending requests and approve/revoke via the User Management panel.
-- **Single Deployment:** Express serves the compiled React bundle in production. Run `npm run deploy` to build and start.
-- **Composite Indexes:** `(user_id, date)` index on records for efficient per-user date-sorted queries.
-
----
-
-## Assumptions
-
-- All monetary amounts are stored in USD as DECIMAL(12,2).
-- New users always join as VIEWER and must request role upgrades.
-- The `setup-admin` endpoint is a one-time seed and returns an error if an admin already exists.
-- Soft-deleted records are excluded from all queries and analytics.
+*Built for maximum efficiency, transparency, and security.*

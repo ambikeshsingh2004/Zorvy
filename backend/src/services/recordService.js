@@ -47,8 +47,8 @@ class RecordService {
         const { amount, type, category, date, notes } = data;
         const { rows } = await this.pool.query(
             `INSERT INTO records (user_id, amount, type, category, date, notes)
-             VALUES ($1, $2, $3, $4, $5, $6) RETURNING *`,
-            [user_id, amount, type, category, date, notes || null]
+             VALUES ($1, $2, $3, $4, COALESCE($5, NOW()), $6) RETURNING *`,
+            [user_id, amount, type, category, date || null, notes || null]
         );
         return rows[0];
     }

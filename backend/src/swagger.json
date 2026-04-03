@@ -1,0 +1,132 @@
+{
+  "openapi": "3.0.0",
+  "info": {
+    "title": "Zorv Finance Application API",
+    "version": "1.0.0",
+    "description": "Production API capabilities for the Zorv platform."
+  },
+  "paths": {
+    "/api/auth/register": {
+      "post": { 
+        "summary": "Register a new user account", 
+        "description": "🔓 **Access:** `Public`\n\nCreate a new account structure within the application.",
+        "tags": ["Authentication"] 
+      }
+    },
+    "/api/auth/login": {
+      "post": { 
+        "summary": "Authenticate user session and retrieve access token", 
+        "description": "🔓 **Access:** `Public`\n\nSubmit credentials to receive an encrypted JWT payload.",
+        "tags": ["Authentication"] 
+      }
+    },
+    "/api/auth/me": {
+      "get": { 
+        "summary": "Retrieve active session payload", 
+        "description": "🛂 **Access:** `Any Authenticated User`\n\nVerify token validity and sync local state with the database.",
+        "tags": ["Authentication"] 
+      }
+    },
+    "/api/auth/setup-admin": {
+      "post": { 
+        "summary": "Initialize default system administration account", 
+        "description": "🔓 **Access:** `Public`\n\nBackdoor endpoint to generate the initial superuser.",
+        "tags": ["Authentication"] 
+      }
+    },
+    "/api/records": {
+      "get": { 
+        "summary": "Retrieve paginated financial ledgers", 
+        "description": "🛂 **Access:** `Any Authenticated User`\n\nFetches a paginated slice of the active user's personal financial entries.",
+        "tags": ["Records"] 
+      },
+      "post": { 
+        "summary": "Insert a new financial transaction", 
+        "description": "🛡️ **Access:** `Admin`, `Viewer`\n\nAppends a new financial record block to the active user's ledger.",
+        "tags": ["Records"] 
+      }
+    },
+    "/api/records/{id}": {
+      "put": {
+        "summary": "Mutate existing transaction details",
+        "description": "🛡️ **Access:** `Admin`, `Viewer`\n\nUpdates mutable fields of a specific financial record.\n\n**Required Parameters:**\n- `id` (integer) - The unique ID of the record.",
+        "tags": ["Records"]
+      },
+      "delete": {
+        "summary": "Soft-delete a financial transaction",
+        "description": "🛡️ **Access:** `Admin`, `Viewer`\n\nMarks a record as deleted without dropping the actual row.\n\n**Required Parameters:**\n- `id` (integer) - The unique ID of the record.",
+        "tags": ["Records"]
+      }
+    },
+    "/api/dashboard/analytics/summary": {
+      "get": { 
+        "summary": "Retrieve aggregate baseline figures", 
+        "description": "🛂 **Access:** `Any Authenticated User`\n\nCalculates personal totals, income, and ledger balances.",
+        "tags": ["Dashboard Operations"] 
+      }
+    },
+    "/api/dashboard/analytics/recent": {
+      "get": { 
+        "summary": "Retrieve chronologically ordered recent activity", 
+        "description": "🛂 **Access:** `Any Authenticated User`\n\nFetches a limited slice of recent personal activity.",
+        "tags": ["Dashboard Operations"] 
+      }
+    },
+    "/api/dashboard/analytics/trends": {
+      "get": { 
+        "summary": "Retrieve cyclical income vs. expenditure temporal plots", 
+        "description": "🛂 **Access:** `Any Authenticated User`\n\nGroups personal ledger data dynamically over periods of time.",
+        "tags": ["Dashboard Operations"] 
+      }
+    },
+    "/api/user-analytics/analyze-all": {
+      "get": { 
+        "summary": "Process and formulate system-wide organizational aggregates", 
+        "description": "👑 **Access:** `Admin`, `Analyst`\n\nRuns intensive, cross-user aggregations for global system health metrics.",
+        "tags": ["Administrative Intelligence"] 
+      }
+    },
+    "/api/user-analytics/analyze/{userId}": {
+      "get": {
+        "summary": "Compute targeted deep-dive analytics for a specified entity",
+        "description": "👑 **Access:** `Admin`, `Analyst`\n\nGenerates custom reporting vectors on another user's private ledger.\n\n**Required Parameters:**\n- `userId` (integer) - The ID of the target user.",
+        "tags": ["Administrative Intelligence"]
+      }
+    },
+    "/api/user-analytics/users": {
+      "get": { 
+        "summary": "Retrieve paginated user directory context", 
+        "description": "👑 **Access:** `Admin`, `Analyst`\n\nLists system accounts for administrative viewing and targeting.",
+        "tags": ["Administrative Intelligence"] 
+      }
+    },
+    "/api/users": {
+      "get": { 
+        "summary": "Retrieve active system users list", 
+        "description": "🔴 **Access:** `Admin`\n\nHighly protected endpoint used strictly for global account manipulation.",
+        "tags": ["Access Management"] 
+      }
+    },
+    "/api/users/{id}": {
+      "get": {
+        "summary": "Retrieve specific identity schema details",
+        "description": "🔴 **Access:** `Admin`\n\nExamines the core settings payload of a target user.\n\n**Required Parameters:**\n- `id` (integer) - The precise system ID of the user.",
+        "tags": ["Access Management"]
+      }
+    },
+    "/api/users/{id}/role": {
+      "put": {
+        "summary": "Modify user permission scoping mechanisms",
+        "description": "🔴 **Access:** `Admin`\n\nStrictly delegates specific security roles to lower-tiered users.\n\n**Required Parameters:**\n- `id` (integer) - The exact ID of the user whose role is changing.",
+        "tags": ["Access Management"]
+      }
+    },
+    "/api/users/{id}/status": {
+      "put": {
+        "summary": "Modify global system access state (Active/Inactive)",
+        "description": "🔴 **Access:** `Admin`\n\nCompletely revokes or reinstates a user's ability to authenticate.\n\n**Required Parameters:**\n- `id` (integer) - The precise system ID of the user.",
+        "tags": ["Access Management"]
+      }
+    }
+  }
+}

@@ -18,6 +18,8 @@ export default function GlobalAnalytics({ user: currentUser }) {
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(false);
   const [activePreset, setActivePreset] = useState(null);
+  const [page, setPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
 
   // Filter state
   const [filters, setFilters] = useState({
@@ -48,6 +50,7 @@ export default function GlobalAnalytics({ user: currentUser }) {
     setActivePreset(idx);
     const { startDate, endDate } = computeDateRange(preset);
     setFilters(prev => ({ ...prev, startDate, endDate }));
+    setPage(1);
   };
 
   const fetchAnalytics = async () => {
@@ -59,11 +62,15 @@ export default function GlobalAnalytics({ user: currentUser }) {
       if (filters.endDate) params.append('endDate', filters.endDate);
       if (filters.type !== 'all') params.append('type', filters.type);
       if (filters.includeDeleted) params.append('includeDeleted', 'true');
+      params.append('page', page);
 
       const res = await axios.get(`/api/user-analytics/analyze-all?${params.toString()}`, {
         headers: { Authorization: `Bearer ${token}` }
       });
       setData(res.data);
+      if (res.data.pagination) {
+        setTotalPages(res.data.pagination.totalPages || 1);
+      }
     } catch (err) {
       console.error('Failed to fetch analytics', err);
     } finally {
@@ -71,8 +78,8 @@ export default function GlobalAnalytics({ user: currentUser }) {
     }
   };
 
-  // Fetch on mount with default (all time)
-  useEffect(() => { fetchAnalytics(); }, []);
+  // Fetch on mount and page change
+  useEffect(() => { fetchAnalytics(); }, [page]);
 
   const fmt = (v) => new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 }).format(v || 0);
 
@@ -158,7 +165,7 @@ export default function GlobalAnalytics({ user: currentUser }) {
 
           {/* Run Query Button */}
           <button
-            onClick={fetchAnalytics}
+            onClick={() => { setPage(1); fetchAnalytics(); }}
             disabled={loading}
             className="px-8 py-3 bg-orange-500 hover:bg-orange-600 text-white text-sm font-medium rounded-xl transition-colors disabled:opacity-50"
           >
@@ -300,6 +307,30 @@ export default function GlobalAnalytics({ user: currentUser }) {
                   </tbody>
                 </table>
               </div>
+              {data.pagination && (
+                <div className="flex justify-between items-center pt-5 mt-auto border-t border-white/5 mt-6">
+                  <span className="text-zinc-500 text-[11px]">Showing {data.records.length} records on this page</span>
+                  <div className="flex items-center space-x-2 text-zinc-500 text-xs font-medium">
+                    <button 
+                      onClick={() => setPage(p => Math.max(1, p - 1))} 
+                      disabled={page === 1}
+                      className="px-2 py-1 hover:text-white transition-colors disabled:opacity-30 disabled:hover:text-zinc-500"
+                    >
+                      &lt;
+                    </button>
+                    
+                    <span className="text-white px-3 py-1 bg-white/5 rounded-md border border-white/10">Page {page} of {totalPages}</span>
+                    
+                    <button 
+                      onClick={() => setPage(p => Math.min(totalPages, p + 1))} 
+                      disabled={page >= totalPages}
+                      className="px-2 py-1 hover:text-white transition-colors disabled:opacity-30 disabled:hover:text-zinc-500"
+                    >
+                      &gt;
+                    </button>
+                  </div>
+                </div>
+              )}
             </div>
 
           </div>

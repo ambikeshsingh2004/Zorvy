@@ -46,9 +46,8 @@ const schemas = {
         category: Joi.string().min(1).max(50).required().messages({
             'any.required': 'Category is required'
         }),
-        date: Joi.string().isoDate().required().messages({
-            'string.isoDate': 'Date must be a valid ISO date (YYYY-MM-DD)',
-            'any.required': 'Date is required'
+        date: Joi.string().isoDate().optional().messages({
+            'string.isoDate': 'Date must be a valid ISO date (YYYY-MM-DD)'
         }),
         notes: Joi.string().max(500).optional().allow('')
     }),

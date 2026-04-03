@@ -32,7 +32,10 @@ class UserAnalyticsService {
             targetUserId = requesterId;
         }
 
-        const { startDate, endDate, type = 'all', includeDeleted = 'false' } = filters;
+        const { startDate, endDate, type = 'all', includeDeleted = 'false', page = 1 } = filters;
+        const limit = 20;
+        const currentPage = Math.max(1, parseInt(page));
+        const offset = (currentPage - 1) * limit;
         
         const conditions = [];
         const params = [];
@@ -88,8 +91,9 @@ class UserAnalyticsService {
             ${fromStatement}
             ${whereClause}
             ORDER BY r.date DESC
-            LIMIT 100
+            LIMIT $${paramIdx++} OFFSET $${paramIdx++}
         `;
+        params.push(limit, offset);
         const recordsResult = await this.pool.query(recordsQuery, params);
 
         // 3. Trends
@@ -152,7 +156,13 @@ class UserAnalyticsService {
                 total: parseFloat(r.total),
                 count: parseInt(r.count)
             })),
-            records: recordsResult.rows
+            records: recordsResult.rows,
+            pagination: {
+                page: currentPage,
+                limit: limit,
+                total: parseInt(s.total_records),
+                totalPages: Math.max(1, Math.ceil(parseInt(s.total_records) / limit))
+            }
         };
 
         if (!isGlobal) {

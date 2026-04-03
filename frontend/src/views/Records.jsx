@@ -6,15 +6,13 @@ export default function Records({ user }) {
   const [records, setRecords] = useState([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState('all');
+  const [page, setPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
 
-  const getLocalDatetimePattern = () => {
-    const now = new Date();
-    now.setMinutes(now.getMinutes() - now.getTimezoneOffset());
-    return now.toISOString().slice(0,16);
-  };
+
 
   const [showModal, setShowModal] = useState(false);
-  const [form, setForm] = useState({ amount: '', type: 'expense', category: '', date: getLocalDatetimePattern(), notes: '' });
+  const [form, setForm] = useState({ amount: '', type: 'expense', category: '', notes: '' });
   const [saving, setSaving] = useState(false);
 
   const fetchRecords = async () => {
@@ -22,10 +20,13 @@ export default function Records({ user }) {
     try {
       const token = localStorage.getItem('token');
       const typeParam = filter !== 'all' ? `&type=${filter}` : '';
-      const res = await axios.get(`/api/records?limit=50${typeParam}`, {
+      const res = await axios.get(`/api/records?limit=10&page=${page}${typeParam}`, {
         headers: { Authorization: `Bearer ${token}` }
       });
       setRecords(res.data.data);
+      if (res.data.pagination) {
+        setTotalPages(res.data.pagination.totalPages || 1);
+      }
     } catch (err) {
       console.error('Failed to fetch', err);
     } finally {
@@ -33,7 +34,7 @@ export default function Records({ user }) {
     }
   };
 
-  useEffect(() => { fetchRecords(); }, [filter]);
+  useEffect(() => { fetchRecords(); }, [filter, page]);
 
   const handleDelete = async (id) => {
     if (!confirm('Soft delete this record?')) return;
@@ -51,7 +52,7 @@ export default function Records({ user }) {
       const token = localStorage.getItem('token');
       await axios.post('/api/records', { ...form, amount: parseFloat(form.amount) }, { headers: { Authorization: `Bearer ${token}` } });
       setShowModal(false);
-      setForm({ amount: '', type: 'expense', category: '', date: getLocalDatetimePattern(), notes: '' });
+      setForm({ amount: '', type: 'expense', category: '', notes: '' });
       fetchRecords(); // refresh list
     } catch (err) { alert(err.response?.data?.error || 'Failed to create record'); }
     finally { setSaving(false); }
@@ -141,14 +142,25 @@ export default function Records({ user }) {
           </div>
           
           <div className="flex justify-between items-center pt-5 mt-auto border-t border-white/5 mt-6">
-            <span className="text-zinc-500 text-[11px]">Showing {records.length} results</span>
-            <div className="flex items-center space-x-2 text-zinc-500 text-xs font-medium cursor-pointer">
-              <span>&lt;</span>
-              <span className="text-white">1</span>
-              <span>2</span>
-              <span>...</span>
-              <span>5</span>
-              <span>&gt;</span>
+            <span className="text-zinc-500 text-[11px]">Showing {records.length} results on this page</span>
+            <div className="flex items-center space-x-2 text-zinc-500 text-xs font-medium">
+              <button 
+                onClick={() => setPage(p => Math.max(1, p - 1))} 
+                disabled={page === 1}
+                className="px-2 py-1 hover:text-white transition-colors disabled:opacity-30 disabled:hover:text-zinc-500"
+              >
+                &lt;
+              </button>
+              
+              <span className="text-white px-3 py-1 bg-white/5 rounded-md border border-white/10">Page {page} of {totalPages}</span>
+              
+              <button 
+                onClick={() => setPage(p => Math.min(totalPages, p + 1))} 
+                disabled={page >= totalPages}
+                className="px-2 py-1 hover:text-white transition-colors disabled:opacity-30 disabled:hover:text-zinc-500"
+              >
+                &gt;
+              </button>
             </div>
           </div>
         </div>
@@ -175,14 +187,10 @@ export default function Records({ user }) {
                 <input required type="number" step="0.01" value={form.amount} onChange={e => setForm({...form, amount: e.target.value})} className="w-full px-4 py-3 bg-[#121212] border border-white/5 rounded-xl text-white text-sm focus:outline-none focus:border-orange-500/50" placeholder="0.00" />
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 gap-4">
                 <div>
                   <label className="block text-xs font-medium text-zinc-500 mb-1.5">Category</label>
                   <input required type="text" value={form.category} onChange={e => setForm({...form, category: e.target.value})} className="w-full px-4 py-3 bg-[#121212] border border-white/5 rounded-xl text-white text-sm focus:outline-none focus:border-orange-500/50" placeholder="e.g. Groceries" />
-                </div>
-                <div>
-                <label className="block text-xs font-medium text-zinc-500 mb-1.5">Date & Time</label>
-                  <input required type="datetime-local" value={form.date} onChange={e => setForm({...form, date: e.target.value})} className="w-full px-4 py-3 bg-[#121212] border border-white/5 rounded-xl text-white text-sm focus:outline-none focus:border-orange-500/50 [color-scheme:dark]" />
                 </div>
               </div>
 

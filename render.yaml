@@ -1,14 +1,17 @@
 services:
   - type: web
-    name: finance-dashboard
+    name: zorv-finance-dashboard
     env: node
-    # Uses the single deployment pipeline we established
+    region: singapore   # closest to India for lowest latency
+    plan: free
     buildCommand: npm run install:all && npm run build:frontend
-    startCommand: npm start
+    startCommand: cd backend && node src/index.js
+    healthCheckPath: /api
     envVars:
       - key: NODE_ENV
         value: production
       - key: DATABASE_URL
-        sync: false # You will provide this securely in the platform dashboard
+        sync: false        # Set this manually in Render dashboard > Environment
       - key: JWT_SECRET
-        generateValue: true # Some platforms like Render auto-generate this securely for you
+        generateValue: true  # Render auto-generates a secure random string
+

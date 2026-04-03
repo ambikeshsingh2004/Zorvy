@@ -3,6 +3,8 @@ const express = require('express');
 const cors = require('cors');
 const rateLimit = require('express-rate-limit');
 const { Pool } = require('pg');
+const swaggerUi = require('swagger-ui-express');
+const swaggerDocument = require('./swagger.json');
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -13,8 +15,8 @@ app.use(express.json());
 
 // Rate Limiting
 const limiter = rateLimit({
-  windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 100, // Limit each IP to 100 requests per `window` (here, per 15 minutes)
+  windowMs: 60 * 1000, // 1 minute
+  max: 50, // Limit each IP to 50 requests per 1 minute window
   standardHeaders: true,
   legacyHeaders: false,
 });
@@ -49,6 +51,20 @@ app.use('/api/records', recordRoutes(pool));
 app.use('/api/dashboard/analytics', analyticsRoutes(pool));
 app.use('/api/users', userRoutes(pool));
 app.use('/api/user-analytics', userAnalyticsRoutes(pool));
+
+// Swagger Documentation (Read-Only)
+const swaggerCss = `
+  .opblock-section { display: none !important; }
+  .markdown p, .markdown li, .markdown li span, .markdown span, .renderedMarkdown p, .renderedMarkdown li { color: #e2e8f0 !important; }
+  .opblock-section-header, .responses-wrapper { background-color: transparent !important; }
+  h4.opblock-title span { border-color: #3f3f46 !important; }
+  .opblock-put { background: rgba(148, 163, 184, 0.1) !important; border-color: rgba(148, 163, 184, 0.3) !important; }
+  .opblock-put .opblock-summary-method { background: #94a3b8 !important; color: #000 !important; }
+`;
+app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerDocument, { 
+    swaggerOptions: { supportedSubmitMethods: [] }, // disables the "Try it out" buttons natively
+    customCss: swaggerCss
+}));
 
 // Basic API health check
 app.get('/api', (req, res) => res.json({ status: 'ok', message: 'API is running.' }));
