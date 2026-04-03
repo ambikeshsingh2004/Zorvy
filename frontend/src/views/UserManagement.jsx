@@ -11,11 +11,8 @@ export default function UserManagement({ user, setUser }) {
       const token = localStorage.getItem('token');
       const res = await axios.get('/api/users', { headers: { Authorization: `Bearer ${token}` } });
       setUsers(res.data);
-    } catch (err) {
-      console.error('Failed to fetch users', err);
-    } finally {
-      setLoading(false);
-    }
+    } catch (err) { console.error(err); }
+    finally { setLoading(false); }
   };
 
   useEffect(() => { fetchUsers(); }, []);
@@ -25,122 +22,111 @@ export default function UserManagement({ user, setUser }) {
       const token = localStorage.getItem('token');
       await axios.patch(`/api/users/${userId}/role`, { role }, { headers: { Authorization: `Bearer ${token}` } });
       fetchUsers();
-    } catch (err) {
-      alert('Failed to update role');
-    }
+    } catch { alert('Failed to update role'); }
   };
 
-  const roleColors = {
-    ADMIN:   'bg-violet-50 text-violet-700 border-violet-100',
-    ANALYST: 'bg-sky-50 text-sky-700 border-sky-100',
-    VIEWER:  'bg-[#EEEDE8] text-[#6B6B6B] border-[#E8E8E4]',
-  };
-
-  const pendingCount = users.filter(u => u.requested_role).length;
+  const pending = users.filter(u => u.requested_role);
 
   return (
     <Layout user={user} setUser={setUser}>
-      <div className="max-w-4xl mx-auto space-y-6">
+      <div className="max-w-[1440px] mx-auto flex flex-col gap-6">
 
-        {/* Header */}
-        <div className="flex items-start justify-between">
-          <div>
-            <h2 className="text-2xl font-black text-[#0A0A0A] tracking-tight" style={{fontFamily: 'Syne, sans-serif'}}>
-              Access Control
-            </h2>
-            <p className="text-xs text-[#ABABAB] mt-1">Manage system roles and pending requests</p>
+        {/* Header Block */}
+        <div className="bg-[#18181A] rounded-2xl p-6 border border-white/5 flex flex-col gap-6">
+          <div className="flex items-center justify-between">
+            <div>
+              <h3 className="text-white text-lg font-medium">Access Control</h3>
+              <p className="text-zinc-500 text-xs mt-1">Manage user roles and permissions</p>
+            </div>
+            {pending.length > 0 && (
+              <div className="flex items-center space-x-2 bg-orange-500/10 border border-orange-500/20 px-4 py-2 rounded-full">
+                <span className="w-2 h-2 bg-orange-500 rounded-full animate-pulse"></span>
+                <span className="text-orange-500 text-xs font-semibold">{pending.length} Requests</span>
+              </div>
+            )}
           </div>
-          {pendingCount > 0 && (
-            <div className="flex items-center space-x-2 bg-amber-50 border border-amber-100 rounded-xl px-4 py-2.5">
-              <span className="w-2 h-2 bg-amber-400 rounded-full animate-pulse" />
-              <span className="text-xs font-semibold text-amber-700">{pendingCount} pending request{pendingCount > 1 ? 's' : ''}</span>
-            </div>
-          )}
+
+          <div className="grid grid-cols-3 gap-6 pt-6 border-t border-white/5">
+            {[
+              { label: 'Total Users', value: users.length },
+              { label: 'Analysts', value: users.filter(u => u.role === 'ANALYST').length },
+              { label: 'Pending', value: pending.length },
+            ].map(({ label, value }) => (
+              <div key={label}>
+                <p className="text-[11px] text-zinc-500 uppercase font-medium">{label}</p>
+                <p className="text-2xl text-white font-medium mt-1">{value}</p>
+              </div>
+            ))}
+          </div>
         </div>
 
-        {/* Stats */}
-        <div className="grid grid-cols-3 gap-3">
-          {[
-            { label: 'Total Users', value: users.length },
-            { label: 'Analysts', value: users.filter(u => u.role === 'ANALYST').length },
-            { label: 'Pending', value: pendingCount },
-          ].map(({ label, value }) => (
-            <div key={label} className="card px-5 py-4">
-              <p className="text-[10px] font-semibold text-[#ABABAB] uppercase tracking-widest mb-1">{label}</p>
-              <p className="text-2xl font-black text-[#0A0A0A]" style={{fontFamily: 'Syne, sans-serif'}}>{value}</p>
-            </div>
-          ))}
-        </div>
-
-        {/* Users table */}
-        <div className="card overflow-hidden">
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="border-b border-[#E8E8E4]">
-                {['User', 'Role', 'Request', 'Actions'].map(h => (
-                  <th key={h} className="px-5 py-3.5 text-left text-[10px] font-semibold text-[#ABABAB] uppercase tracking-widest">{h}</th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {loading ? (
-                [1,2,3].map(i => (
-                  <tr key={i} className="border-b border-[#E8E8E4]">
-                    {[1,2,3,4].map(j => <td key={j} className="px-5 py-4"><div className="h-3 bg-[#EEEDE8] rounded-full animate-pulse w-20" /></td>)}
-                  </tr>
-                ))
-              ) : users.map((u) => (
-                <tr key={u.id} className={`border-b border-[#E8E8E4] hover:bg-[#F7F6F3] transition-colors ${u.requested_role ? 'bg-amber-50/30' : ''}`}>
-                  <td className="px-5 py-4">
-                    <div className="flex items-center space-x-3">
-                      <div className="w-8 h-8 rounded-full bg-[#0A0A0A] flex items-center justify-center text-white text-xs font-bold shrink-0">
-                        {u.name?.[0]?.toUpperCase()}
-                      </div>
-                      <div>
-                        <p className="font-semibold text-[#0A0A0A] text-xs">{u.name}</p>
-                        <p className="text-[10px] text-[#ABABAB]">{u.email}</p>
-                      </div>
-                    </div>
-                  </td>
-                  <td className="px-5 py-4">
-                    <span className={`text-[10px] font-semibold px-2.5 py-1 rounded-full border ${roleColors[u.role]}`}>
-                      {u.role}
-                    </span>
-                  </td>
-                  <td className="px-5 py-4">
-                    {u.requested_role ? (
-                      <span className="badge-pending">
-                        <span className="w-1.5 h-1.5 bg-amber-400 rounded-full" />
-                        <span>Wants {u.requested_role}</span>
-                      </span>
-                    ) : (
-                      <span className="text-[#ABABAB] text-xs">—</span>
-                    )}
-                  </td>
-                  <td className="px-5 py-4">
-                    <div className="flex items-center space-x-2">
-                      {u.role !== 'ADMIN' && u.role !== 'ANALYST' && (
-                        <button
-                          onClick={() => handleUpdateRole(u.id, 'ANALYST')}
-                          className="text-[10px] font-semibold px-3 py-1.5 bg-[#0A0A0A] text-white rounded-lg hover:bg-[#2a2a2a] transition-colors"
-                        >
-                          Grant Analyst
-                        </button>
-                      )}
-                      {u.role === 'ANALYST' && (
-                        <button
-                          onClick={() => handleUpdateRole(u.id, 'VIEWER')}
-                          className="text-[10px] font-semibold px-3 py-1.5 bg-rose-50 text-rose-600 border border-rose-100 rounded-lg hover:bg-rose-100 transition-colors"
-                        >
-                          Revoke
-                        </button>
-                      )}
-                    </div>
-                  </td>
+        {/* Table Block */}
+        <div className="bg-[#18181A] rounded-2xl p-6 border border-white/5 flex-1 flex flex-col min-h-[500px]">
+          <div className="overflow-x-auto">
+            <table className="w-full text-left text-sm">
+              <thead>
+                <tr className="border-b border-white/5">
+                  <th className="pb-4 text-[11px] font-medium text-zinc-500">User</th>
+                  <th className="pb-4 text-[11px] font-medium text-zinc-500">Current Role</th>
+                  <th className="pb-4 text-[11px] font-medium text-zinc-500">Status</th>
+                  <th className="pb-4 text-[11px] font-medium text-zinc-500 text-right">Actions</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {loading ? (
+                  <tr><td colSpan="4" className="py-8 text-center text-zinc-500 text-xs">Loading...</td></tr>
+                ) : (
+                  users.map((u) => (
+                    <tr key={u.id} className="border-b border-white/5 hover:bg-white/[0.02] transition-colors">
+                      <td className="py-4">
+                        <div className="flex items-center space-x-3">
+                          <div className="w-8 h-8 rounded-full bg-white/5 flex items-center justify-center text-zinc-400 text-xs font-semibold">
+                            {u.name?.[0]?.toUpperCase()}
+                          </div>
+                          <div>
+                            <p className="text-sm font-medium text-white">{u.name}</p>
+                            <p className="text-[11px] text-zinc-500">{u.email}</p>
+                          </div>
+                        </div>
+                      </td>
+                      <td className="py-4 text-xs font-medium text-zinc-400">{u.role}</td>
+                      <td className="py-4 text-xs">
+                        {u.requested_role ? (
+                          <span className="inline-flex items-center px-3 py-1 rounded-full bg-yellow-500/10 text-yellow-500 border border-yellow-500/20 text-[10px]">
+                            Requests {u.requested_role}
+                          </span>
+                        ) : (
+                          <span className="inline-flex items-center px-3 py-1 rounded-full bg-white/5 text-zinc-500 border border-white/5 text-[10px]">
+                            Active
+                          </span>
+                        )}
+                      </td>
+                      <td className="py-4 text-right">
+                        <div className="flex items-center justify-end space-x-3">
+                          {u.role !== 'ADMIN' && u.role !== 'ANALYST' && (
+                            <button
+                              onClick={() => handleUpdateRole(u.id, 'ANALYST')}
+                              className="text-[10px] font-medium bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 px-3 py-1.5 rounded-full hover:bg-emerald-500/20 transition-colors"
+                            >
+                              Grant Analyst
+                            </button>
+                          )}
+                          {u.role === 'ANALYST' && (
+                            <button
+                              onClick={() => handleUpdateRole(u.id, 'VIEWER')}
+                              className="text-[10px] font-medium bg-rose-500/10 text-rose-400 border border-rose-500/20 px-3 py-1.5 rounded-full hover:bg-rose-500/20 transition-colors"
+                            >
+                              Revoke
+                            </button>
+                          )}
+                        </div>
+                      </td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
         </div>
       </div>
     </Layout>

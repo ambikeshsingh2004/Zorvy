@@ -1,8 +1,8 @@
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 
 const NAV = [
-  { name: 'Dashboard', path: '/', icon: '▦' },
-  { name: 'Records', path: '/records', icon: '≡' },
+  { name: 'Dashboard', path: '/' },
+  { name: 'Records', path: '/records' },
 ];
 
 export default function Layout({ user, setUser, children }) {
@@ -16,101 +16,75 @@ export default function Layout({ user, setUser, children }) {
     navigate('/login');
   };
 
-  const links = user?.role === 'ADMIN'
-    ? [...NAV, { name: 'Users', path: '/users', icon: '◉' }]
+  const links = ['ADMIN', 'ANALYST'].includes(user?.role)
+    ? [...NAV, { name: 'User Analytics', path: '/user-analytics' }, { name: 'Global Analytics', path: '/global-analytics' }, ...(user?.role === 'ADMIN' ? [{ name: 'Access Control', path: '/users' }] : [])]
     : NAV;
 
-  const currentPage = links.find(l => l.path === location.pathname);
-
-  const roleColors = {
-    ADMIN: 'bg-violet-50 text-violet-700 border-violet-100',
-    ANALYST: 'bg-sky-50 text-sky-700 border-sky-100',
-    VIEWER: 'bg-[#EEEDE8] text-[#6B6B6B] border-[#E8E8E4]',
-  };
-
   return (
-    <div className="flex h-screen bg-[#F7F6F3] overflow-hidden">
-
-      {/* SIDEBAR */}
-      <aside className="w-56 bg-white border-r border-[#E8E8E4] flex flex-col shrink-0">
-        {/* Logo */}
-        <div className="px-5 py-5 border-b border-[#E8E8E4]">
-          <div className="flex items-center space-x-2">
-            <div className="w-7 h-7 bg-[#0A0A0A] rounded-lg flex items-center justify-center">
-              <span className="text-white text-xs font-bold">Z</span>
+    <div className="min-h-screen bg-[#121212] text-white flex flex-col font-sans">
+      
+      {/* Top Navbar */}
+      <header className="border-b border-white/[0.04] px-8 h-20 flex items-center justify-between shrink-0">
+        
+        {/* Left Side: Navigation Links */}
+        <div className="flex items-center h-full">
+          {/* Logo / Brand */}
+          <div className="flex items-center space-x-3 mr-12">
+            <div className="w-6 h-6 bg-gradient-to-br from-orange-400 to-rose-500 rounded-md flex items-center justify-center">
+              <span className="text-white text-xs font-bold font-syne">Z</span>
             </div>
-            <span className="font-bold text-[#0A0A0A] text-sm tracking-tight">ZorvFinance</span>
           </div>
+
+          <nav className="flex space-x-8 h-full">
+            {links.map((item) => {
+              const isActive = item.path === '/'
+                ? location.pathname === '/'
+                : location.pathname.startsWith(item.path);
+              return (
+                <Link
+                  key={item.name}
+                  to={item.path}
+                  className={`relative flex items-center h-full text-sm font-semibold transition-colors duration-200 ${
+                    isActive ? 'text-orange-500' : 'text-zinc-400 hover:text-zinc-200'
+                  }`}
+                >
+                  {item.name}
+                  {isActive && (
+                    <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-orange-500 rounded-t-full" />
+                  )}
+                </Link>
+              );
+            })}
+          </nav>
         </div>
 
-        {/* Nav */}
-        <nav className="flex-1 px-3 py-4 space-y-0.5">
-          <p className="text-[10px] font-semibold text-[#ABABAB] uppercase tracking-widest px-2 mb-2">Navigation</p>
-          {links.map((item) => {
-            const isActive = location.pathname === item.path;
-            return (
-              <Link
-                key={item.name}
-                to={item.path}
-                className={`flex items-center space-x-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-150 ${
-                  isActive
-                    ? 'bg-[#0A0A0A] text-white'
-                    : 'text-[#6B6B6B] hover:bg-[#F0EFE9] hover:text-[#0A0A0A]'
-                }`}
-              >
-                <span className="text-base w-4 text-center">{item.icon}</span>
-                <span>{item.name}</span>
-              </Link>
-            );
-          })}
-        </nav>
+        {/* Right Side: Profile & Actions */}
+        <div className="flex items-center space-x-8">
+          
+          {/* Subtle info toggle (matching the ENG placeholder in screenshot) */}
+          <div className="flex items-center text-sm font-semibold text-zinc-400 hover:text-zinc-200 cursor-pointer transition-colors">
+            {user?.role} <span className="ml-1 opacity-50">▾</span>
+          </div>
 
-        {/* User info */}
-        <div className="p-3 border-t border-[#E8E8E4]">
-          <div className="p-3 rounded-xl bg-[#F7F6F3] border border-[#E8E8E4]">
-            <div className="flex items-center space-x-2.5 mb-2.5">
-              <div className="w-8 h-8 rounded-full bg-[#0A0A0A] flex items-center justify-center text-white text-xs font-bold shrink-0">
-                {user?.name?.[0]?.toUpperCase()}
-              </div>
-              <div className="overflow-hidden">
-                <p className="text-xs font-semibold text-[#0A0A0A] truncate">{user?.name}</p>
-                <p className="text-[10px] text-[#ABABAB] truncate">{user?.email}</p>
-              </div>
+          {/* Profile Badge */}
+          <div className="flex items-center space-x-3">
+            <div className="w-10 h-10 rounded-full bg-[#18181A] border border-white/5 flex items-center justify-center text-orange-400 text-sm font-bold shadow-inner">
+              {user?.name?.[0]?.toUpperCase()}
             </div>
-            <div className="flex items-center justify-between">
-              <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full border ${roleColors[user?.role]}`}>
-                {user?.role}
-              </span>
-              <button
-                onClick={handleLogout}
-                className="text-[10px] font-semibold text-[#ABABAB] hover:text-rose-500 transition-colors"
-              >
+            <div className="flex flex-col">
+              <span className="text-sm font-semibold text-zinc-200">{user?.name}</span>
+              <button onClick={handleLogout} className="text-left text-[11px] text-zinc-500 hover:text-rose-400 transition-colors">
                 Sign out
               </button>
             </div>
           </div>
         </div>
-      </aside>
+      </header>
 
-      {/* MAIN */}
-      <div className="flex-1 flex flex-col overflow-hidden">
-        {/* Topbar */}
-        <header className="bg-white border-b border-[#E8E8E4] px-8 py-4 flex items-center justify-between shrink-0">
-          <div>
-            <h1 className="text-lg font-black text-[#0A0A0A] tracking-tight" style={{fontFamily: 'Syne, sans-serif'}}>
-              {currentPage?.name || 'Dashboard'}
-            </h1>
-          </div>
-          <div className="flex items-center space-x-2">
-            <span className="text-xs text-[#ABABAB]">{new Date().toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}</span>
-          </div>
-        </header>
-
-        {/* Content */}
-        <main className="flex-1 overflow-auto p-8">
-          {children}
-        </main>
-      </div>
+      {/* Main Content Area */}
+      <main className="flex-1 overflow-auto p-10 max-w-[1440px] w-full mx-auto">
+        {children}
+      </main>
     </div>
   );
 }

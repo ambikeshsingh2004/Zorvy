@@ -94,5 +94,17 @@ module.exports = (pool) => {
         }
     };
 
-    return { login, register, setupAdmin };
+    const getMe = async (req, res) => {
+        try {
+            const { id } = req.user;
+            const { rows } = await pool.query('SELECT id, name, email, role, requested_role FROM users WHERE id = $1', [id]);
+            if (rows.length === 0) return res.status(404).json({ error: 'User not found' });
+            res.json(rows[0]);
+        } catch (error) {
+            console.error('getMe error', error);
+            res.status(500).json({ error: 'Internal server error' });
+        }
+    };
+
+    return { login, register, setupAdmin, getMe };
 };

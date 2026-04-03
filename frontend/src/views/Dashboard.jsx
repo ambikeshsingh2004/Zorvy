@@ -1,28 +1,40 @@
 import { useState, useEffect } from 'react';
 import axios from 'axios';
+import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts';
 import Layout from '../components/Layout';
 
 export default function Dashboard({ user, setUser }) {
   const [summary, setSummary] = useState({ total_income: 0, total_expense: 0, net_balance: 0 });
+  const [trends, setTrends] = useState([]);
+  const [recent, setRecent] = useState([]);
+  const [categories, setCategories] = useState([]);
   const [loading, setLoading] = useState(true);
   const [requested, setRequested] = useState(user?.requested_role === 'ANALYST');
 
   useEffect(() => {
-    const fetchSummary = async () => {
-      try {
-        const token = localStorage.getItem('token');
-        const res = await axios.get('/api/dashboard/analytics/summary', {
-          headers: { Authorization: `Bearer ${token}` }
-        });
-        setSummary(res.data);
-      } catch (err) {
-        console.error('Failed to load summary', err);
-      } finally {
-        setLoading(false);
-      }
-    };
-    fetchSummary();
+    const token = localStorage.getItem('token');
+    const headers = { Authorization: `Bearer ${token}` };
+
+    Promise.all([
+      axios.get('/api/dashboard/analytics/summary', { headers }),
+      axios.get('/api/dashboard/analytics/trends', { headers }),
+      axios.get('/api/dashboard/analytics/recent', { headers }),
+      axios.get('/api/dashboard/analytics/categories', { headers }),
+    ]).then(([s, t, r, c]) => {
+      setSummary(s.data);
+      // Format trends for recharts
+      const formattedTrends = t.data.map(d => ({
+        name: new Date(d.month + '-01').toLocaleDateString('en-US', { month: 'short' }),
+        value: Number(d.income)
+      }));
+      setTrends(formattedTrends);
+      setRecent(r.data);
+      setCategories(c.data);
+    }).catch(console.error)
+      .finally(() => setLoading(false));
   }, []);
+
+  const fmt = (v) => new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 }).format(v || 0);
 
   const handleRequestAccess = async () => {
     try {
@@ -30,156 +42,163 @@ export default function Dashboard({ user, setUser }) {
       await axios.post('/api/users/request-role', { requestedRole: 'ANALYST' }, {
         headers: { Authorization: `Bearer ${token}` }
       });
-      const updatedUser = { ...user, requested_role: 'ANALYST' };
-      setUser(updatedUser);
-      localStorage.setItem('user', JSON.stringify(updatedUser));
+      const updated = { ...user, requested_role: 'ANALYST' };
+      setUser(updated);
+      localStorage.setItem('user', JSON.stringify(updated));
       setRequested(true);
-    } catch (err) {
-      console.error('Failed to request access', err);
-    }
+    } catch (err) { console.error(err); }
   };
-
-  const fmt = (val) => new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 }).format(val);
-
-  const metrics = [
-    {
-      label: 'Total Income',
-      value: fmt(summary.total_income),
-      change: '+12.4%',
-      positive: true,
-      bg: 'bg-emerald-500',
-    },
-    {
-      label: 'Total Expenses',
-      value: fmt(summary.total_expense),
-      change: '+3.1%',
-      positive: false,
-      bg: 'bg-rose-500',
-    },
-    {
-      label: 'Net Balance',
-      value: fmt(summary.net_balance),
-      change: summary.net_balance >= 0 ? 'Positive' : 'Negative',
-      positive: summary.net_balance >= 0,
-      bg: 'bg-violet-500',
-    },
-  ];
 
   return (
     <Layout user={user} setUser={setUser}>
-      <div className="max-w-5xl mx-auto space-y-8">
+      
+      {/* Title */}
+      <div className="mb-8 flex flex-col md:flex-row md:items-center justify-between">
+        <div>
+          <h2 className="text-3xl font-semibold text-white tracking-tight" style={{ fontFamily: 'Syne, sans-serif' }}>Dashboard</h2>
+          <p className="text-zinc-500 text-sm mt-1.5 font-medium">Core financial metrics and recent activity.</p>
+        </div>
+      </div>
 
-        {/* Viewer upgrade prompt */}
-        {user?.role === 'VIEWER' && (
-          <div className="flex items-center justify-between p-4 bg-[#0A0A0A] rounded-2xl text-white">
-            <div className="flex items-center space-x-3">
-              <div className="w-8 h-8 bg-violet-500 rounded-xl flex items-center justify-center text-sm">↑</div>
-              <div>
-                <p className="text-sm font-semibold">You're viewing your own data only.</p>
-                <p className="text-xs text-white/50 mt-0.5">Request Analyst access to unlock system-wide insights.</p>
-              </div>
+      {/* Viewer upgrade prompt */}
+      {user?.role === 'VIEWER' && (
+        <div className="mb-6 flex flex-col sm:flex-row sm:items-center justify-between p-5 rounded-2xl bg-[#18181A] border border-orange-500/20 shadow-[0_0_15px_rgba(249,115,22,0.05)]">
+          <div className="flex items-center space-x-4 mb-4 sm:mb-0">
+            <div className="w-10 h-10 rounded-full bg-orange-500/10 flex items-center justify-center text-orange-500 text-lg">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
             </div>
-            <button
-              onClick={handleRequestAccess}
-              disabled={requested}
-              className="shrink-0 text-xs font-semibold px-4 py-2 bg-white text-[#0A0A0A] rounded-xl hover:bg-violet-100 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
-            >
-              {requested ? 'Request sent ✓' : 'Request Analyst Access'}
-            </button>
+            <div>
+              <p className="text-white text-sm font-medium">Viewing personal data only</p>
+              <p className="text-zinc-500 text-[11px] mt-0.5">Request Analyst access to unlock system-wide insights and analytics.</p>
+            </div>
           </div>
-        )}
+          <button
+            onClick={handleRequestAccess}
+            disabled={requested}
+            className="w-full sm:w-auto px-6 py-2.5 bg-gradient-to-r from-orange-500 to-rose-600 hover:from-orange-400 hover:to-rose-500 text-white text-xs font-bold rounded-full disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-md shadow-orange-500/20"
+          >
+            {requested ? '✓ Request Pending' : 'Request Analyst Access'}
+          </button>
+        </div>
+      )}
 
-        {/* Metrics Row */}
-        {loading ? (
-          <div className="grid grid-cols-3 gap-4">
-            {[1,2,3].map(i => <div key={i} className="card p-6 h-32 animate-pulse bg-[#EEEDE8] rounded-2xl" />)}
-          </div>
-        ) : (
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            {metrics.map((m) => (
-              <div key={m.label} className="card p-6 group hover:shadow-md transition-shadow duration-200">
-                <div className="flex items-start justify-between mb-4">
-                  <div className={`w-2 h-2 rounded-full mt-1 ${m.bg}`} />
-                  <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${
-                    m.positive ? 'bg-emerald-50 text-emerald-700' : 'bg-rose-50 text-rose-600'
-                  }`}>
-                    {m.change}
-                  </span>
-                </div>
-                <p className="text-[#6B6B6B] text-xs font-medium uppercase tracking-wider mb-2">{m.label}</p>
-                <p className="text-3xl font-black text-[#0A0A0A] tracking-tight" style={{fontFamily: 'Syne, sans-serif'}}>
+      {loading ? (
+        <div className="text-zinc-500 text-sm">Loading dashboard data...</div>
+      ) : (
+        <div className="flex flex-col gap-6">
+          
+          {/* Summary Row */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            {[
+              { label: 'Total Income', value: fmt(summary.total_income), color: 'text-emerald-400', bg: 'bg-[#18181A]' },
+              { label: 'Total Expenses', value: fmt(summary.total_expense), color: 'text-rose-400', bg: 'bg-[#18181A]' },
+              { label: 'Net Balance', value: fmt(summary.net_balance), color: 'text-white', bg: 'bg-gradient-to-br from-orange-600 to-rose-600 border-none' },
+            ].map((m, i) => (
+              <div key={i} className={`rounded-2xl p-6 border border-white/5 ${m.bg}`}>
+                <p className={`text-xs font-medium uppercase tracking-widest ${i === 2 ? 'text-white/60' : 'text-zinc-500'} mb-2`}>{m.label}</p>
+                <p className={`text-3xl font-semibold tracking-tight ${m.color}`} style={{ fontFamily: 'Syne, sans-serif' }}>
                   {m.value}
                 </p>
               </div>
             ))}
           </div>
-        )}
 
-        {/* Overview */}
-        <div className="grid grid-cols-3 gap-4">
-          <div className="col-span-2 card p-6">
-            <div className="flex items-center justify-between mb-6">
-              <h3 className="text-sm font-bold text-[#0A0A0A]">Spending Overview</h3>
-              <span className="text-xs text-[#ABABAB]">All time</span>
+          {/* Charts Row */}
+          <div className="grid grid-cols-1 lg:grid-cols-[2fr_1fr] gap-6">
+            
+            {/* Monthly Trends */}
+            <div className="bg-[#18181A] rounded-2xl p-6 border border-white/5 flex flex-col min-h-[300px]">
+              <h3 className="text-white text-lg font-medium mb-6">Monthly Trends (Income)</h3>
+              <div className="flex-1 w-full relative">
+                {trends.length === 0 ? (
+                  <div className="absolute inset-0 flex items-center justify-center text-zinc-600 text-sm">No trend data yet.</div>
+                ) : (
+                  <ResponsiveContainer width="100%" height="100%">
+                    <AreaChart data={trends} margin={{ top: 5, right: 0, left: -20, bottom: 0 }}>
+                      <defs>
+                        <linearGradient id="colorValue" x1="0" y1="0" x2="0" y2="1">
+                          <stop offset="5%" stopColor="#f97316" stopOpacity={0.3}/>
+                          <stop offset="95%" stopColor="#f97316" stopOpacity={0}/>
+                        </linearGradient>
+                      </defs>
+                      <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{fill: '#71717a', fontSize: 10}} dy={10} />
+                      <YAxis axisLine={false} tickLine={false} tick={{fill: '#71717a', fontSize: 10}} tickFormatter={(v) => v > 1000 ? `${(v/1000).toFixed(1)}k` : v} />
+                      <Tooltip contentStyle={{ backgroundColor: '#18181A', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '8px' }} />
+                      <Area type="monotone" dataKey="value" stroke="#f97316" strokeWidth={3} fillOpacity={1} fill="url(#colorValue)" />
+                    </AreaChart>
+                  </ResponsiveContainer>
+                )}
+              </div>
             </div>
-            {/* Placeholder bar chart */}
-            <div className="flex items-end space-x-2 h-32">
-              {[40, 70, 55, 80, 60, 90, 45, 75, 50, 85, 65, 95].map((h, i) => (
-                <div key={i} className="flex-1 flex flex-col items-center space-y-1">
-                  <div
-                    className="w-full rounded-t-lg bg-[#0A0A0A] transition-all duration-500"
-                    style={{ height: `${h}%`, opacity: i === 11 ? 1 : 0.08 + i * 0.06 }}
-                  />
-                </div>
-              ))}
-            </div>
-            <div className="flex justify-between mt-2">
-              {['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'].map(m => (
-                <span key={m} className="text-[9px] text-[#ABABAB]">{m}</span>
-              ))}
+
+            {/* Category Wise Totals */}
+            <div className="bg-[#18181A] rounded-2xl p-6 border border-white/5 flex flex-col min-h-[300px] max-h-[400px] overflow-auto">
+              <h3 className="text-white text-lg font-medium mb-6">Category Totals</h3>
+              <div className="flex-1 space-y-4">
+                {categories.length === 0 ? (
+                  <div className="text-zinc-600 text-sm text-center pt-10">No categories found.</div>
+                ) : (
+                  categories.map((c, i) => {
+                    const isIncome = c.type === 'income';
+                    return (
+                      <div key={i} className="flex items-center justify-between p-3 rounded-xl bg-white/[0.02] border border-white/5">
+                        <div>
+                          <p className="text-sm font-medium text-zinc-300 capitalize">{c.category}</p>
+                          <p className="text-[10px] text-zinc-500 mt-0.5">{c.count} records ({c.type})</p>
+                        </div>
+                        <div className={`text-sm font-semibold ${isIncome ? 'text-emerald-400' : 'text-rose-400'}`}>
+                          {isIncome ? '+' : '-'}{fmt(c.total)}
+                        </div>
+                      </div>
+                    );
+                  })
+                )}
+              </div>
             </div>
           </div>
 
-          <div className="card p-6 flex flex-col justify-between">
-            <div>
-              <h3 className="text-sm font-bold text-[#0A0A0A] mb-1">Income vs Expense</h3>
-              <p className="text-xs text-[#ABABAB]">Ratio breakdown</p>
+          {/* Bottom Table: Recent Activity */}
+          <div className="bg-[#18181A] rounded-2xl p-6 border border-white/5 flex-1 flex flex-col">
+            <h3 className="text-white text-lg font-medium mb-6">Recent Activity</h3>
+            
+            <div className="overflow-x-auto">
+              <table className="w-full text-left text-sm">
+                <thead>
+                  <tr className="border-b border-white/5">
+                    {['Date', 'Category', 'Type', 'Amount'].map(h => (
+                      <th key={h} className="pb-4 text-[11px] font-medium text-zinc-500 uppercase tracking-widest">{h}</th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {recent.length === 0 ? (
+                    <tr><td colSpan="4" className="py-8 text-center text-zinc-500 text-xs">No recent activity</td></tr>
+                  ) : (
+                    recent.map(r => (
+                      <tr key={r.id} className="border-b border-white/5 hover:bg-white/[0.02] transition-colors">
+                        <td className="py-4 text-zinc-400 text-xs">
+                          {new Date(r.date).toLocaleString('en-US', { year: 'numeric', month: 'short', day: 'numeric' })}
+                        </td>
+                        <td className="py-4 text-zinc-300 text-xs capitalize">{r.category}</td>
+                        <td className="py-4 text-zinc-300 text-xs capitalize">{r.type}</td>
+                        <td className={`py-4 text-xs font-medium ${r.type === 'income' ? 'text-emerald-400' : 'text-rose-400'}`}>
+                          {r.type === 'income' ? '+' : '-'}{fmt(r.amount)}
+                        </td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
             </div>
-
-            {/* Simple ratio bar */}
-            {(() => {
-              const total = summary.total_income + summary.total_expense;
-              const incomeWidth = total > 0 ? (summary.total_income / total) * 100 : 50;
-              return (
-                <div>
-                  <div className="flex rounded-full overflow-hidden h-3 mb-3 bg-[#EEEDE8]">
-                    <div className="bg-emerald-500 transition-all" style={{ width: `${incomeWidth}%` }} />
-                    <div className="bg-rose-400 transition-all" style={{ width: `${100 - incomeWidth}%` }} />
-                  </div>
-                  <div className="space-y-2">
-                    <div className="flex justify-between text-xs">
-                      <span className="flex items-center space-x-1.5"><span className="w-2 h-2 bg-emerald-500 rounded-full inline-block"/><span className="text-[#6B6B6B]">Income</span></span>
-                      <span className="font-semibold">{incomeWidth.toFixed(0)}%</span>
-                    </div>
-                    <div className="flex justify-between text-xs">
-                      <span className="flex items-center space-x-1.5"><span className="w-2 h-2 bg-rose-400 rounded-full inline-block"/><span className="text-[#6B6B6B]">Expense</span></span>
-                      <span className="font-semibold">{(100 - incomeWidth).toFixed(0)}%</span>
-                    </div>
-                  </div>
-                </div>
-              );
-            })()}
-
-            <div className="pt-4 border-t border-[#E8E8E4]">
-              <p className="text-[10px] text-[#ABABAB] uppercase tracking-wider mb-1">Net Position</p>
-              <p className={`text-xl font-black ${summary.net_balance >= 0 ? 'text-emerald-600' : 'text-rose-500'}`} style={{fontFamily: 'Syne, sans-serif'}}>
-                {fmt(summary.net_balance)}
-              </p>
-            </div>
+            {recent.length > 0 && (
+              <div className="text-right mt-4 pt-4 border-t border-white/5">
+                <a href="/records" className="text-xs text-orange-500 hover:text-orange-400 transition-colors font-medium">View all records →</a>
+              </div>
+            )}
           </div>
+
         </div>
-
-      </div>
+      )}
     </Layout>
   );
 }

@@ -39,6 +39,8 @@ const authRoutes = require('./routes/authRoutes');
 const recordRoutes = require('./routes/recordRoutes');
 const analyticsRoutes = require('./routes/analyticsRoutes');
 const userRoutes = require('./routes/userRoutes');
+const userAnalyticsRoutes = require('./routes/userAnalyticsRoutes');
+const errorHandler = require('./middleware/errorHandler');
 const path = require('path');
 
 // Use Routes
@@ -46,6 +48,7 @@ app.use('/api/auth', authRoutes(pool));
 app.use('/api/records', recordRoutes(pool));
 app.use('/api/dashboard/analytics', analyticsRoutes(pool));
 app.use('/api/users', userRoutes(pool));
+app.use('/api/user-analytics', userAnalyticsRoutes(pool));
 
 // Basic API health check
 app.get('/api', (req, res) => res.json({ status: 'ok', message: 'API is running.' }));
@@ -62,6 +65,47 @@ app.get('*', (req, res) => {
     res.sendFile(path.join(frontendDistPath, 'index.html'));
 });
 
-app.listen(PORT, () => {
-    console.log(`Server is running on port ${PORT}`);
+// Global error handler — must be LAST
+app.use(errorHandler);
+
+// ==========================================
+// GRACEFUL SHUTDOWN — fixes EADDRINUSE on nodemon restart
+// ==========================================
+const server = app.listen(PORT, () => {
+    console.log(`✅ Server is running on port ${PORT}`);
+});
+
+// Handle port already in use
+server.on('error', (err) => {
+    if (err.code === 'EADDRINUSE') {
+        console.error(`❌ Port ${PORT} is already in use. Retrying in 2s...`);
+        setTimeout(() => {
+            server.close();
+            server.listen(PORT);
+        }, 2000);
+    } else {
+        console.error('Server error:', err);
+        process.exit(1);
+    }
+});
+
+// Graceful shutdown on SIGTERM (sent by nodemon on restart)
+process.on('SIGTERM', () => {
+    console.log('🔄 SIGTERM received — shutting down gracefully...');
+    server.close(() => {
+        pool.end(() => {
+            console.log('✅ DB pool closed. Process exiting.');
+            process.exit(0);
+        });
+    });
+});
+
+// Graceful shutdown on Ctrl+C
+process.on('SIGINT', () => {
+    console.log('\n🔄 SIGINT received — shutting down...');
+    server.close(() => {
+        pool.end(() => {
+            process.exit(0);
+        });
+    });
 });

@@ -1,76 +1,48 @@
+const RecordService = require('../services/recordService');
+
 module.exports = (pool) => {
-    const getRecords = async (req, res) => {
+    const recordService = new RecordService(pool);
+
+    const getRecords = async (req, res, next) => {
         try {
             const { role, id } = req.user;
-            let { page = 1, limit = 20, type, category } = req.query;
-            const offset = (page - 1) * limit;
-
-            let query = 'SELECT * FROM records WHERE deleted_at IS NULL';
-            let params = [];
-            let paramIdx = 1;
-
-            // RBAC Filtering - Viewers only see their own
-            if (role === 'VIEWER') {
-                query += ` AND user_id = $${paramIdx++}`;
-                params.push(id);
-            }
-
-            // Filtering
-            if (type) {
-                query += ` AND type = $${paramIdx++}`;
-                params.push(type);
-            }
-            if (category) {
-                query += ` AND category = $${paramIdx++}`;
-                params.push(category);
-            }
-
-            // Pagination
-            query += ` ORDER BY date DESC LIMIT $${paramIdx++} OFFSET $${paramIdx++}`;
-            params.push(limit, offset);
-
-            const { rows } = await pool.query(query, params);
-            res.json({ data: rows, page: parseInt(page), limit: parseInt(limit) });
-        } catch (error) {
-            console.error('getRecords error', error);
-            res.status(500).json({ error: 'Failed to fetch records' });
-        }
+            const result = await recordService.getRecords(role, id, req.query);
+            res.json(result);
+        } catch (err) { next(err); }
     };
 
-    const createRecord = async (req, res) => {
+    const createRecord = async (req, res, next) => {
         try {
-            const { amount, type, category, date, notes } = req.body;
-            const user_id = req.user.id;
-
-            const q = `INSERT INTO records (user_id, amount, type, category, date, notes) 
-                       VALUES ($1, $2, $3, $4, $5, $6) RETURNING *`;
-            const { rows } = await pool.query(q, [user_id, amount, type, category, date, notes]);
-            res.status(201).json(rows[0]);
-        } catch (err) {
-            res.status(500).json({ error: 'Failed to create record' });
-        }
+            const record = await recordService.createRecord(req.user.id, req.body);
+            res.status(201).json(record);
+        } catch (err) { next(err); }
     };
 
-    const deleteRecord = async (req, res) => {
+    const updateRecord = async (req, res, next) => {
         try {
             const recordId = req.params.id;
             const { role, id } = req.user;
-
-            let authCheck = 'SELECT * FROM records WHERE id = $1 AND deleted_at IS NULL';
-            const { rows } = await pool.query(authCheck, [recordId]);
-            if (rows.length === 0) return res.status(404).json({ error: 'Not found' });
-
-            if (role === 'VIEWER' && rows[0].user_id !== id) {
-                return res.status(403).json({ error: 'Forbidden' });
-            }
-
-            // Soft delete
-            await pool.query('UPDATE records SET deleted_at = NOW() WHERE id = $1', [recordId]);
-            res.json({ message: 'Record deleted' });
-        } catch (err) {
-            res.status(500).json({ error: 'Failed to delete record' });
+            const updated = await recordService.updateRecord(role, id, recordId, req.body);
+            res.json(updated);
+        } catch (err) { 
+            if (err.message === 'Record not found') return res.status(404).json({ error: err.message });
+            if (err.message === 'Forbidden') return res.status(403).json({ error: 'You can only update your own records' });
+            next(err); 
         }
     };
 
-    return { getRecords, createRecord, deleteRecord };
+    const deleteRecord = async (req, res, next) => {
+        try {
+            const recordId = req.params.id;
+            const { role, id } = req.user;
+            await recordService.deleteRecord(role, id, recordId);
+            res.json({ message: 'Record deleted successfully' });
+        } catch (err) { 
+            if (err.message === 'Record not found') return res.status(404).json({ error: err.message });
+            if (err.message === 'Forbidden') return res.status(403).json({ error: 'You can only delete your own records' });
+            next(err); 
+        }
+    };
+
+    return { getRecords, createRecord, updateRecord, deleteRecord };
 };
