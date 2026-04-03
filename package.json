@@ -1,0 +1,14 @@
+{
+  "name": "finance-dashboard-root",
+  "version": "1.0.0",
+  "description": "Finance Dashboard - Root Scripts",
+  "scripts": {
+    "install:backend":  "cd backend && npm install",
+    "install:frontend": "cd frontend && npm install",
+    "install:all":      "cd backend && npm install && cd ../frontend && npm install",
+    "start:backend":    "cd backend && npm run dev",
+    "start:frontend":   "cd frontend && npm run dev",
+    "build:frontend":   "cd frontend && npm run build",
+    "deploy":           "npm run install:all && npm run build:frontend && cd backend && npm start"
+  }
+}
