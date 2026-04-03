@@ -72,14 +72,18 @@ app.get('/api', (req, res) => res.json({ status: 'ok', message: 'API is running.
 // ==========================================
 // SINGLE DEPLOYMENT - Serve Frontend Statically
 // ==========================================
-// In production, Express will serve the compiled React bundle
+// Only in production — in local dev, Vite serves the frontend separately
 const frontendDistPath = path.join(__dirname, '../../frontend/dist');
-app.use(express.static(frontendDistPath));
+const fs = require('fs');
 
-// For any other route, send the React index.html so React Router handles it
-app.get('*', (req, res) => {
-    res.sendFile(path.join(frontendDistPath, 'index.html'));
-});
+if (fs.existsSync(frontendDistPath)) {
+    app.use(express.static(frontendDistPath));
+
+    // For any non-API route, send React's index.html so React Router handles it
+    app.get('*', (req, res) => {
+        res.sendFile(path.join(frontendDistPath, 'index.html'));
+    });
+}
 
 // Global error handler — must be LAST
 app.use(errorHandler);
